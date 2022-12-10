@@ -1,4 +1,3 @@
-
 SET FOREIGN_KEY_CHECKS=0;
 
 drop table if exists Team;
@@ -39,14 +38,14 @@ foreign key (TeamName) references Team (TeamName)
 );
 
 create table if not exists Roster(
-Season smallint not null,
+Season year not null,
 TeamName varchar(36) not null,
 Wins smallint not null,
 Losses smallint not null,
 primary key (Season, TeamName),
 foreign key (Season) references Season(StartingYear),
 foreign key (TeamName) references Team (TeamName)
-);
+); 
 
 create table if not exists Player(
 PlayerId mediumint not null auto_increment,
@@ -55,13 +54,13 @@ age tinyint not null,
 Position Enum('PG', 'SG', 'SF', 'PF', 'C') not null, 
 Salary decimal(12,2) not null, 
 ContractLength tinyint not null, 
-DraftSeason smallint not null,
+DraftSeason year not null,
 DraftPosition tinyint not null,
 primary key (PlayerId),
 foreign key (DraftSeason) references Season(StartingYear));
 
 create table if not exists Season(
-StartingYear smallint not null, 
+StartingYear year not null, 
 MVP mediumint, 
 MIP mediumint, 
 CoachYear varchar(50), 
@@ -91,8 +90,7 @@ StaffMemberId mediumint not null auto_increment,
 StaffMemberName varchar(36) not null,
 JobTitle varchar(36) not null,
 Salary decimal(12,2) not null,
-primary key (StaffId),
-foreign key (TeamName) references Team (TeamName)
+primary key (StaffMemberId)
 );
 
 create table if not exists Arena(
@@ -121,7 +119,7 @@ foreign key (AwayTeam) references Team (TeamName)
 );
 
 create table if not exists Drafts(
-Season smallint not null,
+Season year not null,
 LotteryDate date not null,
 SelectionDate date not null,
 Primary key (Season),
@@ -129,7 +127,7 @@ foreign key (Season) references Season (StartingYear)
 );
 
 create table if not exists Playoffs(
-Season smallint not null,
+Season year not null,
 WinningTeam varchar(36) not null,
 Primary key (Season),
 foreign key (Season) references Season (StartingYear)
@@ -137,7 +135,7 @@ foreign key (Season) references Season (StartingYear)
 
 create table if not exists Series(
 RoundType enum ("First","Second","Conference Finals","Finals") not null,
-Season smallint not null,
+Season year not null,
 WinningTeam varchar(36) not null,
 LosingTeam varchar(36) not null,
 primary key (RoundType),
@@ -146,7 +144,7 @@ foreign key (LosingTeam) references Team (TeamName)
 );
 
 create table if not exists IsInRoster(
-Season smallint not null,
+Season year not null,
 TeamName varchar(36) not null,
 PlayerId mediumint not null,
 primary key (Season, TeamName, PlayerId),
@@ -163,10 +161,36 @@ foreign key (StaffMemberId) references Staff_Member (StaffMemberId),
 foreign key (StaffId) references Staff (StaffId)
 );
 
-
-
-
-
-
-
 SET FOREIGN_KEY_CHECKS=1;
+
+
+delimiter //
+create trigger TooManyTeams after insert on Team
+for each row begin
+declare c integer;
+set c = (select count(*) from team);
+if c > 2
+    then
+      SIGNAL sqlstate '45001' set message_text = "Too many Teams";
+    end if ;
+end //
+
+
+create trigger AllStarNameDiffFromLeagueTeam after insert on All_Star_Team
+for each row begin
+if (select count(*) from League_Team where League_Team.TeamName = NEW.TeamName) > 0
+    then
+      SIGNAL sqlstate '45001' set message_text = "Duplicate team name";
+    end if ;
+end //
+
+delimiter ;
+
+
+
+
+
+insert into Team value ("Team1", "East", "123 ez street");
+insert into Team value ("Team2", "East", "124 ez street");
+insert into Team value ("Team3", "East", "125 ez street");
+
